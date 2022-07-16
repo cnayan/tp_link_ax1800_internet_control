@@ -25,7 +25,7 @@ class Constants {
 Also, if you don't want accidental blockage of certain devices (that is in your/admin's possession), place their MAC in the `unblockableDevices` collection.
 
 # Behavior
-The trick used to gant/block access of internet to devices is by placing the device in blacklist (to block) or removing it from blacklist (to grant internet access.)
+The trick used to grant/block access of internet to devices is by placing the device in blacklist (to block) or removing it from blacklist (to grant internet access.)
 Note that the unblocked device has to reconnect to router to get internet. This is standard behavior of any network device and is out of scope of this project.
 
 # Supported TP Link device models
