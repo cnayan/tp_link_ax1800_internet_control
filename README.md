@@ -36,4 +36,4 @@ Note that the unblocked device has to reconnect to router to get internet. This 
 
 # Thanks
 I thank [Electry](https://github.com/Electry) for providing base idea on how to communicate with my router. Apparently, AX1800 and C2300 have same API in their firmware.
-His inpiring repo: https://github.com/Electry/TPLink-C2300-APIClient
+His inspiring repo: https://github.com/Electry/TPLink-C2300-APIClient
