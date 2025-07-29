@@ -11,7 +11,8 @@ class Utils {
     return ret;
   }
 
-  static String pad(final List<int> dataToPad, final int blockSize, {String style = 'pkcs7'}) {
+  static String pad(final List<int> dataToPad, final int blockSize,
+      {String style = 'pkcs7'}) {
     String padding;
     final paddingLength = blockSize - dataToPad.length % blockSize;
     if (style == 'pkcs7') {
@@ -30,7 +31,8 @@ class Utils {
     return String.fromCharCode(c);
   }
 
-  static unpad(final List<int> paddedData, final int blockSize, {String style = 'pkcs7'}) {
+  static List<int> unpad(final List<int> paddedData, final int blockSize,
+      {String style = 'pkcs7'}) {
     final int pdataLen = paddedData.length;
     if (pdataLen == 0) {
       throw Exception("Zero-length input cannot be unpadded");
@@ -47,13 +49,16 @@ class Utils {
       }
 
       if (style == 'pkcs7') {
-        final String range = String.fromCharCodes(paddedData.getRange(paddedData.length - paddingLength, paddedData.length));
+        final String range = String.fromCharCodes(paddedData.getRange(
+            paddedData.length - paddingLength, paddedData.length));
         final String padded = bchr(paddingLength) * paddingLength;
         if (range != padded) {
           throw Exception("PKCS#7 padding is incorrect.");
         }
       } else {
-        if (String.fromCharCodes(paddedData.getRange(paddedData.length - paddingLength, paddedData.length - 1)) != bchr(0) * (paddingLength - 1)) {
+        if (String.fromCharCodes(paddedData.getRange(
+                paddedData.length - paddingLength, paddedData.length - 1)) !=
+            bchr(0) * (paddingLength - 1)) {
           throw Exception("ANSI X.923 padding is incorrect.");
         }
       }
@@ -71,19 +76,21 @@ class Utils {
       throw Exception("Unknown padding style");
     }
 
-    return paddedData.getRange(paddedData.length - 2, paddedData.length).toList(growable: false);
+    return paddedData
+        .getRange(paddedData.length - 2, paddedData.length)
+        .toList(growable: false);
   }
 
-  hexlify(str) {
-    var result = "";
-    const padding = "00";
-    for (var i = 0, l = str.length; i < l; i++) {
-      var digit = str.charCodeAt(i).toString(16);
-      var s = padding + digit;
-      var padded = s.substring(s.length - 2);
-      result += padded;
-    }
+  // String hexlify(dynamic str) {
+  //   var result = "";
+  //   const padding = "00";
+  //   for (var i = 0, l = str.length; i < l; i++) {
+  //     var digit = str.charCodeAt(i).toString(16);
+  //     var s = padding + digit;
+  //     var padded = s.substring(s.length - 2);
+  //     result += padded;
+  //   }
 
-    return result;
-  }
+  //   return result;
+  // }
 }

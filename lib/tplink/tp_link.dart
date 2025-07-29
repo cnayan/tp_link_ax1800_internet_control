@@ -18,7 +18,8 @@ class TpLink {
     "Accept": "application/json, text/javascript, */*; q=0.01",
     "Accept-Encoding": "gzip, deflate",
     "Accept-Language": "en-US,en;q=0.9",
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv {90.0) Gecko/20100101 Firefox/90.0',
+    'User-Agent':
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv {90.0) Gecko/20100101 Firefox/90.0',
     "X-Requested-With": "XMLHttpRequest",
     "Connection": "keep-alive",
     'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
@@ -40,7 +41,8 @@ class TpLink {
     _token = null;
   }
 
-  Future connect(String user, String password, {bool logoutOthers = false}) async {
+  Future connectAsync(String user, String password,
+      {bool logoutOthers = false}) async {
     // hash the password
     _md5HashPassword = __hashPassword(user, password);
 
@@ -48,37 +50,38 @@ class TpLink {
     _generatedKeyAndIV = __genAESKey();
 
     // request public RSA keys from the router
-    _rsaPasswordPubKeys = await __reqRSAPasswordKeys();
-    _rsaAuthPubKeys = await __reqRSAAuthKeys();
+    _rsaPasswordPubKeys = await __reqRSAPasswordKeysAsync();
+    _rsaAuthPubKeys = await __reqRSAAuthKeysAsync();
 
     // encrypt the password
     _encryptedPassword = __encryptPassword(password);
 
     // authenticate
     try {
-      _token = await __reqLogin(_encryptedPassword);
+      _token = await __reqLoginAsync(_encryptedPassword);
     } catch (e) {
       if (!logoutOthers) {
         rethrow;
       }
 
-      _token = await __reqLogin(_encryptedPassword, forceLogin: true);
+      _token = await __reqLoginAsync(_encryptedPassword, forceLogin: true);
     }
   }
 
-  Future logout() async {
+  Future logoutAsync() async {
     if (_token == null) {
       return false;
     }
 
-    final success = await __reqLogout();
+    final success = await __reqLogoutAsync();
     _token = null;
 
     return success;
   }
 
-  Future<List<dynamic>> getSmartNetwork() async {
-    var data = await getApi('admin/smart_network', 'game_accelerator', data: {'operation': 'loadDevice'});
+  Future<List<dynamic>> getSmartNetworkAsync() async {
+    var data = await getApiAsync('admin/smart_network', 'game_accelerator',
+        data: {'operation': 'loadDevice'});
     if (data == null) return [];
     return data;
   }
@@ -94,8 +97,9 @@ class TpLink {
   //   return data;
   // }
 
-  Future<List<dynamic>> getBlackList() async {
-    final data = await getApi('admin/access_control', 'black_list', data: {'operation': 'load'});
+  Future<List<dynamic>> getBlackListAsync() async {
+    final data = await getApiAsync('admin/access_control', 'black_list',
+        data: {'operation': 'load'});
     if (data is Map<String, dynamic> && data.isEmpty) {
       return [];
     }
@@ -107,8 +111,9 @@ class TpLink {
     return data;
   }
 
-  Future block(Device device) async {
-    final data = await getApi('admin/access_control', 'black_devices', data: {
+  Future blockAsync(Device device) async {
+    final data =
+        await getApiAsync('admin/access_control', 'black_devices', data: {
       "operation": "block",
       "key": device.key,
       "data": [
@@ -129,11 +134,11 @@ class TpLink {
     return data;
   }
 
-  Future<List<dynamic>> unblock(int index) async {
+  Future<List<dynamic>> unblockAsync(int index) async {
     // Generate a v1 (time-based) id
     final String guid = _uuid.v1(); // -> '6c84fb90-12c4-11e1-840d-7b25c5ee775a'
 
-    final data = await getApi('admin/access_control', 'black_list', data: {
+    final data = await getApiAsync('admin/access_control', 'black_list', data: {
       "key": "key-$guid",
       "index": "$index",
       "operation": "remove",
@@ -143,10 +148,11 @@ class TpLink {
     return data;
   }
 
-  Future<dynamic> getApi(final String api, final String endpoint, {Map<String, dynamic> data = const {'operation': 'read'}}) async {
+  Future<dynamic> getApiAsync(final String api, final String endpoint,
+      {Map<String, dynamic> data = const {'operation': 'read'}}) async {
     final url = _getUrl(api, endpoint);
 
-    var resp = await __request(url, data, encrypt: true);
+    var resp = await __requestAsync(url, data, encrypt: true);
     if (resp["success"] == true) {
       return resp["data"];
     } else {
@@ -163,7 +169,9 @@ class TpLink {
     }
   }
 
-  Future<Map<String, dynamic>> __request(final String url, final Map<String, dynamic> data, {bool encrypt = false, bool isLogin = false}) async {
+  Future<Map<String, dynamic>> __requestAsync(
+      final String url, final Map<String, dynamic> data,
+      {bool encrypt = false, bool isLogin = false}) async {
     Map<String, dynamic> formData = data;
     dynamic dataString = data;
     if (encrypt) {
@@ -175,7 +183,8 @@ class TpLink {
       final String encryptedData = Aes.encryptData(dataString, key, iv);
 
       // get encrypted signature
-      final String signature = __getSignature(encryptedData.length, isLogin: isLogin);
+      final String signature =
+          __getSignature(encryptedData.length, isLogin: isLogin);
 
       // order matters here! signature needs to go first (or we get empty 403 response)
       formData = {'sign': signature, 'data': encryptedData};
@@ -231,14 +240,16 @@ class TpLink {
     return jsonDecode(resp.body);
   }
 
-  String __formatBodyToEncrypt(data) {
+  String __formatBodyToEncrypt(Map<String, dynamic> data) {
     // format form data into a string
     Map<String, dynamic> d = jsonDecode(jsonEncode(data));
 
     var dataArr = [];
     for (var ent in d.entries) {
       final key = ent.key;
-      final value = ent.value is num || ent.value is String || ent.value is bool ? ent.value : Uri.encodeComponent(jsonEncode(ent.value));
+      final value = ent.value is num || ent.value is String || ent.value is bool
+          ? ent.value
+          : Uri.encodeComponent(jsonEncode(ent.value));
       dataArr.add("$key=$value");
     }
 
@@ -252,8 +263,9 @@ class TpLink {
     return result;
   }
 
-  String __encryptPassword(password) {
-    final encrypted = Aes.encryptWithPublicKey(password, _rsaPasswordPubKeys.item1, _rsaPasswordPubKeys.item2);
+  String __encryptPassword(String password) {
+    final encrypted = Aes.encryptWithPublicKey(
+        password, _rsaPasswordPubKeys.item1, _rsaPasswordPubKeys.item2);
     return encrypted;
   }
 
@@ -289,7 +301,8 @@ class TpLink {
       final String aesKeyString = "k=$aesKey&i=$aesIV";
 
       // on login we also send our AES key, which is subsequently used for E2E encrypted communication
-      signData = "$aesKeyString&h=$_md5HashPassword&s=${rsaSeqNumber + bodyDataLength}";
+      signData =
+          "$aesKeyString&h=$_md5HashPassword&s=${rsaSeqNumber + bodyDataLength}";
     } else {
       signData = "h=$_md5HashPassword&s=${rsaSeqNumber + bodyDataLength}";
     }
@@ -300,7 +313,8 @@ class TpLink {
     // encrypt the signature using the RSA auth public key
     while (pos < signData.length) {
       final sub = signData.substring(pos, math.min(signData.length, pos + 53));
-      final String enc = Aes.encryptWithPublicKey(sub, _rsaAuthPubKeys.item1, _rsaAuthPubKeys.item2);
+      final String enc = Aes.encryptWithPublicKey(
+          sub, _rsaAuthPubKeys.item1, _rsaAuthPubKeys.item2);
       signature += enc;
       pos += 53;
     }
@@ -308,11 +322,12 @@ class TpLink {
     return signature;
   }
 
-  Future<Tuple2<String, String>> __reqRSAPasswordKeys() async {
+  Future<Tuple2<String, String>> __reqRSAPasswordKeysAsync() async {
     final String url = _getUrl('login', 'keys');
     const Map<String, String> data = {'operation': 'read'};
 
-    final Map<String, dynamic> response = await __request(url, data, encrypt: false);
+    final Map<String, dynamic> response =
+        await __requestAsync(url, data, encrypt: false);
     if (response['success'] == false) {
       throw Exception("Could not fetch Pass Keys");
     }
@@ -322,33 +337,41 @@ class TpLink {
     return Tuple2(passwordPubKey[0], passwordPubKey[1]);
   }
 
-  Future<Tuple3<String, String, int>> __reqRSAAuthKeys() async {
+  Future<Tuple3<String, String, int>> __reqRSAAuthKeysAsync() async {
     final String url = _getUrl('login', 'auth');
     final Map<String, dynamic> data = {'operation': 'read'};
 
-    final Map<String, dynamic> response = await __request(url, data, encrypt: false);
+    final Map<String, dynamic> response =
+        await __requestAsync(url, data, encrypt: false);
     final List<dynamic> authPubKey = response['data']['key'];
 
-    return Tuple3(authPubKey[0].toString(), authPubKey[1].toString(), response['data']['seq']);
+    return Tuple3(authPubKey[0].toString(), authPubKey[1].toString(),
+        response['data']['seq']);
   }
 
-  Future __reqLogin(encryptedPassword, {bool forceLogin = false}) async {
+  Future<String> __reqLoginAsync(String encryptedPassword,
+      {bool forceLogin = false}) async {
     final String url = _getUrl('login', 'login');
-    final Map<String, dynamic> data = {'operation': 'login', 'password': encryptedPassword};
+    final Map<String, dynamic> data = {
+      'operation': 'login',
+      'password': encryptedPassword
+    };
 
     if (forceLogin) {
       data['confirm'] = 'true';
     }
 
-    final Map<String, dynamic> response = await __request(url, data, encrypt: true, isLogin: true);
+    final Map<String, dynamic> response =
+        await __requestAsync(url, data, encrypt: true, isLogin: true);
     return response['data']['stok'];
   }
 
-  Future<dynamic> __reqLogout() async {
+  Future<dynamic> __reqLogoutAsync() async {
     final url = _getUrl('admin/system', 'logout');
     final data = {'operation': 'write'};
 
-    final Map<String, dynamic> response = await __request(url, data, encrypt: true);
+    final Map<String, dynamic> response =
+        await __requestAsync(url, data, encrypt: true);
     return response['success'];
   }
 

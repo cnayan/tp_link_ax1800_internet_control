@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:flutter/material.dart';
 import 'package:tp_link_firewall_client/tplink/constants.dart';
 import '../tplink/models/black_listed.dart';
@@ -21,10 +23,11 @@ class _MainPageState extends State<MainPage> {
 
   _MainPageState() {
     _router = TpLink(Constants.routerIP);
-    Future.delayed(const Duration(seconds: 1)).then((_) => _refreshDevices());
+    Future.delayed(const Duration(seconds: 1))
+        .then((_) => _refreshDevicesAsync());
   }
 
-  Future _refreshDevices() async {
+  Future _refreshDevicesAsync() async {
     if (_fetchingDevices) {
       return;
     }
@@ -35,21 +38,24 @@ class _MainPageState extends State<MainPage> {
       _fetchingDevices = true;
     });
 
-    await _router.connect(Constants.routerUser, Constants.routerPassword);
-    final List<dynamic> list = await _router.getSmartNetwork();
-    if (list.isNotEmpty) {
-      try {
+    try {
+      await _router.connectAsync(
+          Constants.routerUser, Constants.routerPassword);
+      final List<dynamic> list = await _router.getSmartNetworkAsync();
+      if (list.isNotEmpty) {
         setState(() {
           for (final element in list) {
             _devices.add(Device.fromJson(element));
           }
         });
 
-        final List<dynamic> blackListed = await _router.getBlackList();
+        final List<dynamic> blackListed = await _router.getBlackListAsync();
         for (int i = 0; i < blackListed.length; i++) {
           final blocked = blackListed[i];
           var bd = BlackListed.fromJson(blocked);
-          final Device? bdDevice = _devices.cast<Device?>().firstWhere((x) => bd.mac == x?.mac, orElse: () => null);
+          final Device? bdDevice = _devices
+              .cast<Device?>()
+              .firstWhere((x) => bd.mac == x?.mac, orElse: () => null);
           if (bdDevice != null) {
             bdDevice
               ..isBlocked = true
@@ -63,7 +69,65 @@ class _MainPageState extends State<MainPage> {
         }
 
         _devices.sort((a, b) => a.name.compareTo(b.name));
-      } catch (err) {
+      }
+
+      await _router.logoutAsync();
+      setState(() {
+        _fetchingDevices = false;
+      });
+    } catch (err) {
+      setState(() {
+        _devices.clear();
+        _fetchingDevices = false;
+      });
+
+      if (context.mounted) {
+        showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Text("Error"),
+              content: Text("Exception: $err"),
+              actions: [
+                TextButton(
+                  child: const Text('OK'),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                ),
+              ],
+            );
+          },
+        );
+      }
+    }
+  }
+
+  Future tapHandlerAsync(Device device) async {
+    if (!device.canBlock || device.isBusy) {
+      return;
+    }
+
+    device.isBusy = true;
+    setState(() {
+      device.isBusy = true;
+    });
+
+    await _router.connectAsync(Constants.routerUser, Constants.routerPassword);
+    var data = [];
+    try {
+      if (device.isBlocked) {
+        data = await _router.unblockAsync(device.blockedIndex!);
+      } else if (device.canBlock) {
+        data = await _router.blockAsync(device);
+      }
+
+      if (data.isNotEmpty) {
+        await Future.delayed(const Duration(milliseconds: 500));
+        _refreshDevicesAsync();
+      }
+    } catch (err) {
+      if (context.mounted) {
         showDialog(
           context: context,
           builder: (BuildContext context) {
@@ -84,55 +148,7 @@ class _MainPageState extends State<MainPage> {
       }
     }
 
-    await _router.logout();
-    setState(() {
-      _fetchingDevices = false;
-    });
-  }
-
-  Future tapHandler(Device device) async {
-    if (!device.canBlock || device.isBusy) {
-      return;
-    }
-
-    device.isBusy = true;
-    setState(() {
-      device.isBusy = true;
-    });
-
-    await _router.connect(Constants.routerUser, Constants.routerPassword);
-    var data = [];
-    try {
-      if (device.isBlocked) {
-        data = await _router.unblock(device.blockedIndex!);
-      } else if (device.canBlock) {
-        data = await _router.block(device);
-      }
-
-      if (data.isNotEmpty) {
-        Future.delayed(const Duration(milliseconds: 500)).then((_) => _refreshDevices());
-      }
-    } catch (err) {
-      showDialog(
-        context: context,
-        builder: (BuildContext context) {
-          return AlertDialog(
-            title: const Text("Error"),
-            content: Text("Exception: $err"),
-            actions: [
-              TextButton(
-                child: const Text('OK'),
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
-              ),
-            ],
-          );
-        },
-      );
-    }
-
-    await _router.logout();
+    await _router.logoutAsync();
 
     setState(() {
       device.isBusy = false;
@@ -175,7 +191,7 @@ class _MainPageState extends State<MainPage> {
                   child: InkWell(
                     splashColor: Colors.blue.withAlpha(30),
                     onTap: () {
-                      tapHandler(_devices[index]);
+                      tapHandlerAsync(_devices[index]);
                     },
                     child: SizedBox(
                       height: 100,
@@ -245,7 +261,7 @@ class _MainPageState extends State<MainPage> {
         height: 80,
         width: 80,
         child: FloatingActionButton(
-          onPressed: _refreshDevices,
+          onPressed: _refreshDevicesAsync,
           tooltip: 'Refresh',
           child: const Icon(
             Icons.refresh,

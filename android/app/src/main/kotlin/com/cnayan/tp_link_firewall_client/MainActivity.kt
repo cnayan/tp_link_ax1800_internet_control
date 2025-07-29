@@ -1,4 +1,4 @@
-package com.example.tp_link_firewall_client
+package com.cnayan.tp_link_firewall_client
 
 import io.flutter.embedding.android.FlutterActivity
 
